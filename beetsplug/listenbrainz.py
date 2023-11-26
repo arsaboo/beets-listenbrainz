@@ -5,6 +5,7 @@ Adds Listenbrainz support to Beets.
 import requests
 import datetime
 from beets import config, ui
+from beets.plugins import BeetsPlugin
 
 class ListenBrainzPlugin(BeetsPlugin):
     data_source = "ListenBrainz"
