@@ -13,8 +13,8 @@ class ListenBrainzPlugin(BeetsPlugin):
 
     def __init__(self):
         super().__init__()
-        self.token = config["listenbrainz"].get(str, "token")
-        self.username = config["listenbrainz"].get(str, "username")
+        self.token = self.config["token"].get()
+        self.username = self.config["username"].get()
         self.AUTH_HEADER = {"Authorization": f"Token {self.token}"}
         config['listenbrainz']['token'].redact = True
 
