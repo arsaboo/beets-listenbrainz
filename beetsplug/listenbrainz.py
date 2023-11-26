@@ -4,7 +4,7 @@ Adds Listenbrainz support to Beets.
 
 import requests
 import datetime
-
+from beets import config, ui
 
 class ListenBrainzPlugin(BeetsPlugin):
     data_source = "ListenBrainz"
@@ -12,9 +12,28 @@ class ListenBrainzPlugin(BeetsPlugin):
 
     def __init__(self):
         super().__init__()
-        self.token = self.config["listenbrainz"].get(str, "token")
-        self.username = self.config["listenbrainz"].get(str, "username")
+        self.token = config["listenbrainz"].get(str, "token")
+        self.username = config["listenbrainz"].get(str, "username")
         self.AUTH_HEADER = {"Authorization": f"Token {self.token}"}
+        config['listenbrainz']['token'].redact = True
+
+    def commands(self):
+        """Add beet UI commands to interact with ListenBrainz."""
+        lbupdate_cmd = ui.Subcommand(
+            'lbupdate', help=f'Update {self.data_source} views')
+
+        def func(lib, opts, args):
+            items = lib.items(ui.decargs(args))
+            self._lbupdate(items, ui.should_write())
+
+        lbupdate_cmd.func = func
+        return [lbupdate_cmd]
+
+    def _lbupdate(self, items, write):
+        """Obtain view count from Youtube."""
+        ls = self.get_listenbrainz_playlists(self.username)
+        self._log.debug('Found {} playlists', len(ls))
+
 
     def _make_request(self, url):
         try:
