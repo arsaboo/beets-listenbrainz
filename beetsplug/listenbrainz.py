@@ -6,6 +6,10 @@ import requests
 import datetime
 from beets import config, ui
 from beets.plugins import BeetsPlugin
+from beets.autotag import mb
+
+mb.set_useragent("ListenBrainz", "1.0", "https://github.com/arsaboo/beets-listenbrainz")
+
 
 class ListenBrainzPlugin(BeetsPlugin):
     data_source = "ListenBrainz"
@@ -16,12 +20,13 @@ class ListenBrainzPlugin(BeetsPlugin):
         self.token = self.config["token"].get()
         self.username = self.config["username"].get()
         self.AUTH_HEADER = {"Authorization": f"Token {self.token}"}
-        config['listenbrainz']['token'].redact = True
+        config["listenbrainz"]["token"].redact = True
 
     def commands(self):
         """Add beet UI commands to interact with ListenBrainz."""
         lbupdate_cmd = ui.Subcommand(
-            'lbupdate', help=f'Update {self.data_source} views')
+            "lbupdate", help=f"Update {self.data_source} views"
+        )
 
         def func(lib, opts, args):
             items = lib.items(ui.decargs(args))
@@ -31,10 +36,9 @@ class ListenBrainzPlugin(BeetsPlugin):
         return [lbupdate_cmd]
 
     def _lbupdate(self, items, write):
-        """Obtain view count from Youtube."""
+        """Obtain view count from Listenbrainz."""
         ls = self.get_listenbrainz_playlists(self.username)
-        self._log.debug('Found {} playlists', len(ls))
-
+        self._log.debug("Found {} playlists", len(ls))
 
     def _make_request(self, url):
         try:
@@ -92,4 +96,37 @@ class ListenBrainzPlugin(BeetsPlugin):
                     "title": track.get("title"),
                 }
             )
-        return tracks
+        return self.get_track_info(tracks)
+
+    def get_track_info(tracks):
+        track_info = []
+        for track in tracks:
+            identifier = track.get("identifier")
+            resp = mb.get_recording_by_id(
+                identifier, includes=["releases", "artist-credits"]
+            )
+            recording = resp.get("recording")
+            title = recording.get("title")
+            artist_credit = recording.get("artist-credit", [])
+            if artist_credit:
+                artist = artist_credit[0].get("artist", {}).get("name")
+            else:
+                artist = None
+            releases = recording.get("release-list", [])
+            if releases:
+                album = releases[0].get("title")
+                date = releases[0].get("date")
+                year = date.split("-")[0] if date else None
+            else:
+                album = None
+                year = None
+            track_info.append(
+                {
+                    "identifier": identifier,
+                    "title": title,
+                    "artist": artist,
+                    "album": album,
+                    "year": year,
+                }
+            )
+        return track_info
