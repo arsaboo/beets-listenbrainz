@@ -82,7 +82,7 @@ class ListenBrainzPlugin(BeetsPlugin):
 
     def get_playlist(self, identifier):
         """Returns a playlist."""
-        url = f"{self.ROOT}/1/playlist/{identifier}"
+        url = f"{self.ROOT}/playlist/{identifier}"
         return self._make_request(url)
 
     def get_tracks_from_playlist(self, playlist):
