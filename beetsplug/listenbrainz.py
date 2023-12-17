@@ -141,9 +141,9 @@ class ListenBrainzPlugin(BeetsPlugin):
         """Returns a list of weekly exploration."""
         return self.get_weekly_playlist(username, 0)
 
-    def get_weekly_jams(self, username):
+    def get_weekly_jams(self):
         """Returns a list of weekly jams."""
-        return self.get_weekly_playlist(username, 1)
+        return self.get_weekly_playlist(self.username, 1)
 
     def get_last_weekly_exploration(self, username):
         """Returns a list of weekly exploration."""
