@@ -6,9 +6,9 @@ import requests
 import datetime
 from beets import config, ui
 from beets.plugins import BeetsPlugin
-from beets.autotag import mb
+import musicbrainzngs as mb
 
-# mb.set_useragent("ListenBrainz", "1.0", "https://github.com/arsaboo/beets-listenbrainz")
+mb.set_useragent("ListenBrainz", "1.0", "https://github.com/arsaboo/beets-listenbrainz")
 
 
 class ListenBrainzPlugin(BeetsPlugin):
