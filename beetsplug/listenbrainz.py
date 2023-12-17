@@ -58,8 +58,8 @@ class ListenBrainzPlugin(BeetsPlugin):
         url = f"{self.ROOT}/user/{username}/playlists/createdfor"
         return self._make_request(url)
 
-    def get_listenbrainz_playlists(self, username):
-        resp = self.get_playlists_createdfor(username)
+    def get_listenbrainz_playlists(self):
+        resp = self.get_playlists_createdfor(self.username)
         playlists = resp.get("playlists")
         listenbrainz_playlists = []
 
@@ -131,24 +131,24 @@ class ListenBrainzPlugin(BeetsPlugin):
             )
         return track_info
 
-    def get_weekly_playlist(self, username, index):
+    def get_weekly_playlist(self, index):
         """Returns a list of weekly playlists based on the index."""
-        playlists = self.get_listenbrainz_playlists(username)
+        playlists = self.get_listenbrainz_playlists(self.username)
         playlist = self.get_playlist(playlists[index].get("identifier"))
         return self.get_tracks_from_playlist(playlist)
 
-    def get_weekly_exploration(self, username):
+    def get_weekly_exploration(self):
         """Returns a list of weekly exploration."""
-        return self.get_weekly_playlist(username, 0)
+        return self.get_weekly_playlist(self.username, 0)
 
     def get_weekly_jams(self):
         """Returns a list of weekly jams."""
         return self.get_weekly_playlist(self.username, 1)
 
-    def get_last_weekly_exploration(self, username):
+    def get_last_weekly_exploration(self):
         """Returns a list of weekly exploration."""
-        return self.get_weekly_playlist(username, 3)
+        return self.get_weekly_playlist(self.username, 3)
 
-    def get_last_weekly_jams(self, username):
+    def get_last_weekly_jams(self):
         """Returns a list of weekly jams."""
-        return self.get_weekly_playlist(username, 3)
+        return self.get_weekly_playlist(self.username, 3)
