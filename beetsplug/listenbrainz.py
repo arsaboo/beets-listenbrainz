@@ -98,7 +98,7 @@ class ListenBrainzPlugin(BeetsPlugin):
             )
         return self.get_track_info(tracks)
 
-    def get_track_info(tracks):
+    def get_track_info(self, tracks):
         track_info = []
         for track in tracks:
             identifier = track.get("identifier")
