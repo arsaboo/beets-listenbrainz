@@ -130,3 +130,25 @@ class ListenBrainzPlugin(BeetsPlugin):
                 }
             )
         return track_info
+
+    def get_weekly_playlist(self, username, index):
+        """Returns a list of weekly playlists based on the index."""
+        playlists = self.get_listenbrainz_playlists(username)
+        playlist = self.get_playlist(playlists[index].get("identifier"))
+        return self.get_tracks_from_playlist(playlist)
+
+    def get_weekly_exploration(self, username):
+        """Returns a list of weekly exploration."""
+        return self.get_weekly_playlist(username, 0)
+
+    def get_weekly_jams(self, username):
+        """Returns a list of weekly jams."""
+        return self.get_weekly_playlist(username, 1)
+
+    def get_last_weekly_exploration(self, username):
+        """Returns a list of weekly exploration."""
+        return self.get_weekly_playlist(username, 3)
+
+    def get_last_weekly_jams(self, username):
+        """Returns a list of weekly jams."""
+        return self.get_weekly_playlist(username, 3)
