@@ -64,19 +64,16 @@ class ListenBrainzPlugin(BeetsPlugin):
         listenbrainz_playlists = []
 
         for playlist in playlists:
-            list = playlist.get("playlist")
-            if list.get("creator") == "listenbrainz":
-                title = list.get("title")
-                if "Exploration" in title:
-                    type = "Exploration"
-                elif "Jams" in title:
-                    type = "Jams"
-                date = title.split("week of ")[1].split(" ")[0]
-                date = datetime.datetime.strptime(date, "%Y-%m-%d").date()
-                identifier = list.get("identifier")
+            playlist_info = playlist.get("playlist")
+            if playlist_info.get("creator") == "listenbrainz":
+                title = playlist_info.get("title")
+                playlist_type = "Exploration" if "Exploration" in title else "Jams"
+                date_str = title.split("week of ")[1].split(" ")[0]
+                date = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
+                identifier = playlist_info.get("identifier")
                 id = identifier.split("/")[-1]
                 listenbrainz_playlists.append(
-                    {"type": type, "date": date, "identifier": id}
+                    {"type": playlist_type, "date": date, "identifier": id}
                 )
         return listenbrainz_playlists
 
