@@ -38,7 +38,7 @@ class ListenBrainzPlugin(BeetsPlugin):
     def _lbupdate(self, items, write):
         """Obtain view count from Listenbrainz."""
         ls = self.get_listenbrainz_playlists(self.username)
-        self._log.debug("Found {} playlists", len(ls))
+        self._log.debug(f"Found {len(ls)} playlists")
 
     def _make_request(self, url):
         try:
@@ -51,7 +51,7 @@ class ListenBrainzPlugin(BeetsPlugin):
             return response.json()
         except requests.exceptions.RequestException as e:
             self._log.debug(f"Invalid Search Error: {e}")
-            return []
+            return None
 
     def get_playlists_createdfor(self, username):
         """Returns a list of playlists created by a user."""
