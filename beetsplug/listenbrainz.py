@@ -131,6 +131,8 @@ class ListenBrainzPlugin(BeetsPlugin):
     def get_weekly_playlist(self, index):
         """Returns a list of weekly playlists based on the index."""
         playlists = self.get_listenbrainz_playlists()
+        for playlist in playlists:
+            self._log.debug(f"Playlist: {playlist["type"]} - {playlist["date"]}")
         playlist = self.get_playlist(playlists[index].get("identifier"))
         return self.get_tracks_from_playlist(playlist)
 
