@@ -83,7 +83,8 @@ class ListenBrainzPlugin(BeetsPlugin):
         listenbrainz_playlists = sorted(
             listenbrainz_playlists, key=lambda x: x["date"], reverse=True
         )
-        self._log.debug("Listenbrainz playlists: %s", str(listenbrainz_playlists))
+        for playlist in listenbrainz_playlists:
+            self._log.debug(f'Playlist: {playlist["type"]} - {playlist["date"]}')
         return listenbrainz_playlists
 
     def get_playlist(self, identifier):
