@@ -69,14 +69,21 @@ class ListenBrainzPlugin(BeetsPlugin):
                 title = playlist_info.get("title")
                 self._log.debug(f"Playlist title: {title}")
                 playlist_type = "Exploration" if "Exploration" in title else "Jams"
-                date_str = title.split("week of ")[1].split(" ")[0]
-                date = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
+                if "week of" in title:
+                    date_str = title.split("week of ")[1].split(" ")[0]
+                    date = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
+                else:
+                    continue
                 identifier = playlist_info.get("identifier")
                 id = identifier.split("/")[-1]
-                self._log.debug(f"Playlist: {playlist_type} - {date}")
                 listenbrainz_playlists.append(
                     {"type": playlist_type, "date": date, "identifier": id}
                 )
+        listenbrainz_playlists = sorted(listenbrainz_playlists, key=lambda x: x["type"])
+        listenbrainz_playlists = sorted(
+            listenbrainz_playlists, key=lambda x: x["date"], reverse=True
+        )
+        self._log.debug(f"Listenbrainz playlists: {listenbrainz_playlists}")
         return listenbrainz_playlists
 
     def get_playlist(self, identifier):
