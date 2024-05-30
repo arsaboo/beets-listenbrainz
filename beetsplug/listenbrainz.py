@@ -97,10 +97,13 @@ class ListenBrainzPlugin(BeetsPlugin):
         tracks = []
         for track in playlist.get("playlist").get("track"):
             self._log.debug(f"Track: {track}")
+            identifier = track.get("identifier")
+            if isinstance(identifier, list):
+                identifier = identifier[0]
             tracks.append(
                 {
                     "artist": track.get("creator"),
-                    "identifier": track.get("identifier").split("/")[-1],
+                    "identifier": identifier.split("/")[-1],
                     "title": track.get("title"),
                 }
             )
