@@ -105,7 +105,7 @@ class ListenBrainzPlugin(BeetsPlugin):
                 "identifier": identifier.split("/")[-1],
                 "title": track.get("title"),
             }
-            self._log.debug(f"Track: {track_dict}")
+            self._log.debug(f"Track: {str(track_dict)}")  # Convert dictionary to string before logging
             tracks.append(track_dict)
         return self.get_track_info(tracks)
 
