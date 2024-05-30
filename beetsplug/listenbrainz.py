@@ -99,13 +99,13 @@ class ListenBrainzPlugin(BeetsPlugin):
             identifier = track.get("identifier")
             if isinstance(identifier, list):
                 identifier = identifier[0]
-            tracks.append(
-                {
-                    "artist": track.get("creator"),
-                    "identifier": identifier.split("/")[-1],
-                    "title": track.get("title"),
-                }
-            )
+            track_dict = {
+                "artist": track.get("creator"),
+                "identifier": identifier.split("/")[-1],
+                "title": track.get("title"),
+            }
+            self._log.debug(f"Track: {track_dict}")
+            tracks.append(track_dict)
         return self.get_track_info(tracks)
 
     def get_track_info(self, tracks):
@@ -144,7 +144,6 @@ class ListenBrainzPlugin(BeetsPlugin):
     def get_weekly_playlist(self, index):
         """Returns a list of weekly playlists based on the index."""
         playlists = self.get_listenbrainz_playlists()
-        self._log.debug(f"Found Playlists: {playlists}")
         playlist = self.get_playlist(playlists[index].get("identifier"))
         return self.get_tracks_from_playlist(playlist)
 
@@ -154,11 +153,11 @@ class ListenBrainzPlugin(BeetsPlugin):
 
     def get_weekly_jams(self):
         """Returns a list of weekly jams."""
-        return self.get_weekly_playlist(2)
+        return self.get_weekly_playlist(1)
 
     def get_last_weekly_exploration(self):
         """Returns a list of weekly exploration."""
-        return self.get_weekly_playlist(1)
+        return self.get_weekly_playlist(2)
 
     def get_last_weekly_jams(self):
         """Returns a list of weekly jams."""
