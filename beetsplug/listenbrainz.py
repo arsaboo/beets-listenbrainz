@@ -99,8 +99,9 @@ class ListenBrainzPlugin(BeetsPlugin):
             identifier = track.get("identifier")
             if isinstance(identifier, list):
                 identifier = identifier[0]
+            artist = track.get("creator", "Unknown artist")  # Set a default value if 'creator' key is not present
             track_dict = {
-                "artist": track.get("creator"),
+                "artist": artist,
                 "identifier": identifier.split("/")[-1],
                 "title": track.get("title"),
             }
