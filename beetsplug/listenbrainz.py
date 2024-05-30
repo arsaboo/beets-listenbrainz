@@ -96,7 +96,6 @@ class ListenBrainzPlugin(BeetsPlugin):
         """This function returns a list of tracks in the playlist."""
         tracks = []
         for track in playlist.get("playlist").get("track"):
-            self._log.debug(f"Track: {track}")
             identifier = track.get("identifier")
             if isinstance(identifier, list):
                 identifier = identifier[0]
@@ -145,6 +144,7 @@ class ListenBrainzPlugin(BeetsPlugin):
     def get_weekly_playlist(self, index):
         """Returns a list of weekly playlists based on the index."""
         playlists = self.get_listenbrainz_playlists()
+        self._log.debug(f"Found Playlists: {playlists}")
         playlist = self.get_playlist(playlists[index].get("identifier"))
         return self.get_tracks_from_playlist(playlist)
 
