@@ -96,6 +96,7 @@ class ListenBrainzPlugin(BeetsPlugin):
         """This function returns a list of tracks in the playlist."""
         tracks = []
         for track in playlist.get("playlist").get("track"):
+            self._log.debug(f"Track: {str(track)}")  # Convert dictionary to string before logging
             identifier = track.get("identifier")
             if isinstance(identifier, list):
                 identifier = identifier[0]
