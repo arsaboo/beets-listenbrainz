@@ -141,26 +141,27 @@ class ListenBrainzPlugin(BeetsPlugin):
             )
         return track_info
 
-    def get_weekly_playlist(self, index):
-        """Returns a list of weekly playlists based on the index."""
+    def get_weekly_playlist(self, playlist_type, most_recent=True):
+        # Fetch all playlists
         playlists = self.get_listenbrainz_playlists()
-        for playlist in playlists:
-            self._log.debug(playlist["type"] + " - " + str(playlist["date"]))
-        playlist = self.get_playlist(playlists[index].get("identifier"))
+        # Filter playlists by type
+        filtered_playlists = [p for p in playlists if p["type"] == playlist_type]
+        # Sort playlists by date in descending order
+        sorted_playlists = sorted(filtered_playlists, key=lambda x: x["date"], reverse=True)
+        # Select the most recent or older playlist based on the most_recent flag
+        selected_playlist = sorted_playlists[0] if most_recent else sorted_playlists[1]
+        # Fetch and return tracks from the selected playlist
+        playlist = self.get_playlist(selected_playlist.get("identifier"))
         return self.get_tracks_from_playlist(playlist)
 
     def get_weekly_exploration(self):
-        """Returns a list of weekly exploration."""
-        return self.get_weekly_playlist(0)
+        return self.get_weekly_playlist("Exploration", most_recent=True)
 
     def get_weekly_jams(self):
-        """Returns a list of weekly jams."""
-        return self.get_weekly_playlist(1)
+        return self.get_weekly_playlist("Jams", most_recent=True)
 
     def get_last_weekly_exploration(self):
-        """Returns a list of weekly exploration."""
-        return self.get_weekly_playlist(2)
+        return self.get_weekly_playlist("Exploration", most_recent=False)
 
     def get_last_weekly_jams(self):
-        """Returns a list of weekly jams."""
-        return self.get_weekly_playlist(3)
+        return self.get_weekly_playlist("Jams", most_recent=False)
