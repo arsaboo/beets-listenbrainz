@@ -154,6 +154,9 @@ class ListenBrainzPlugin(BeetsPlugin):
         )
         # Select the most recent or older playlist based on the most_recent flag
         selected_playlist = sorted_playlists[0] if most_recent else sorted_playlists[1]
+        self._log.debug(
+            f"Selected playlist: {selected_playlist['type']} - {selected_playlist['date']}"
+        )
         # Fetch and return tracks from the selected playlist
         playlist = self.get_playlist(selected_playlist.get("identifier"))
         return self.get_tracks_from_playlist(playlist)
