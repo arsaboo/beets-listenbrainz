@@ -179,7 +179,7 @@ class ListenBrainzPlugin(BeetsPlugin):
                 "No ListenBrainz playlists found. Check token, username, or API status."
             )
         # Filter playlists by type
-        filtered_playlists = [p for p in playlists if p["type"] == playlist_type]
+        filtered_playlists = [p for p in playlists if p.get("type") == playlist_type]
         if not filtered_playlists:
             raise ui.UserError(f"No weekly {playlist_type} playlists found.")
         # Sort playlists by date in descending order
