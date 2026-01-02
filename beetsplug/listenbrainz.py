@@ -37,7 +37,7 @@ class ListenBrainzPlugin(BeetsPlugin):
 
     def _lbupdate(self, items, write):
         """Obtain view count from Listenbrainz."""
-        ls = self.get_listenbrainz_playlists(self.username)
+        ls = self.get_listenbrainz_playlists()
         self._log.debug(f"Found {len(ls)} playlists")
 
     def _make_request(self, url):
@@ -83,13 +83,18 @@ class ListenBrainzPlugin(BeetsPlugin):
                 else:
                     continue
                 identifier = playlist_info.get("identifier")
-                id = identifier.split("/")[-1]
+                if not isinstance(identifier, str) or not identifier:
+                    self._log.warning(
+                        "ListenBrainz playlist missing valid identifier; skipping."
+                    )
+                    continue
+                playlist_id = identifier.split("/")[-1]
                 listenbrainz_playlists.append(
-                    {"type": playlist_type, "date": date, "identifier": id}
+                    {"type": playlist_type, "date": date, "identifier": playlist_id}
                 )
-        listenbrainz_playlists = sorted(listenbrainz_playlists, key=lambda x: x["type"])
         listenbrainz_playlists = sorted(
-            listenbrainz_playlists, key=lambda x: x["date"], reverse=True
+            listenbrainz_playlists,
+            key=lambda x: (-x["date"].toordinal(), x["type"]),
         )
         for playlist in listenbrainz_playlists:
             self._log.debug(f'Playlist: {playlist["type"]} - {playlist["date"]}')
@@ -131,9 +136,15 @@ class ListenBrainzPlugin(BeetsPlugin):
         track_info = []
         for track in tracks:
             identifier = track.get("identifier")
-            resp = mb.get_recording_by_id(
-                identifier, includes=["releases", "artist-credits"]
-            )
+            try:
+                resp = mb.get_recording_by_id(
+                    identifier, includes=["releases", "artist-credits"]
+                )
+            except mb.MusicBrainzError as e:
+                self._log.debug(
+                    f"MusicBrainz lookup failed for identifier {identifier}: {e}"
+                )
+                continue
             recording = resp.get("recording")
             title = recording.get("title")
             artist_credit = recording.get("artist-credit", [])
