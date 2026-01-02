@@ -13,7 +13,7 @@ mb.set_useragent("ListenBrainz", "1.0", "https://github.com/arsaboo/beets-listen
 
 class ListenBrainzPlugin(BeetsPlugin):
     data_source = "ListenBrainz"
-    ROOT = "http://api.listenbrainz.org/1/"
+    ROOT = "https://api.listenbrainz.org/1/"
 
     def __init__(self):
         super().__init__()
@@ -37,7 +37,7 @@ class ListenBrainzPlugin(BeetsPlugin):
 
     def _lbupdate(self, items, write):
         """Obtain view count from Listenbrainz."""
-        ls = self.get_listenbrainz_playlists(self.username)
+        ls = self.get_listenbrainz_playlists()
         self._log.debug(f"Found {len(ls)} playlists")
 
     def _make_request(self, url):
@@ -60,11 +60,19 @@ class ListenBrainzPlugin(BeetsPlugin):
 
     def get_listenbrainz_playlists(self):
         resp = self.get_playlists_createdfor(self.username)
-        playlists = resp.get("playlists")
+        if not resp:
+            self._log.warning("ListenBrainz API returned no data for playlists.")
+            return []
+        playlists = resp.get("playlists") or []
+        if not isinstance(playlists, list):
+            self._log.warning("ListenBrainz API response missing playlists list.")
+            return []
         listenbrainz_playlists = []
 
         for playlist in playlists:
             playlist_info = playlist.get("playlist")
+            if not playlist_info:
+                continue
             if playlist_info.get("creator") == "listenbrainz":
                 title = playlist_info.get("title")
                 self._log.debug(f"Playlist title: {title}")
@@ -75,13 +83,18 @@ class ListenBrainzPlugin(BeetsPlugin):
                 else:
                     continue
                 identifier = playlist_info.get("identifier")
-                id = identifier.split("/")[-1]
+                if not isinstance(identifier, str) or not identifier:
+                    self._log.warning(
+                        "ListenBrainz playlist missing valid identifier; skipping."
+                    )
+                    continue
+                playlist_id = identifier.split("/")[-1]
                 listenbrainz_playlists.append(
-                    {"type": playlist_type, "date": date, "identifier": id}
+                    {"type": playlist_type, "date": date, "identifier": playlist_id}
                 )
-        listenbrainz_playlists = sorted(listenbrainz_playlists, key=lambda x: x["type"])
         listenbrainz_playlists = sorted(
-            listenbrainz_playlists, key=lambda x: x["date"], reverse=True
+            listenbrainz_playlists,
+            key=lambda x: (-x["date"].toordinal(), x["type"]),
         )
         for playlist in listenbrainz_playlists:
             self._log.debug(f'Playlist: {playlist["type"]} - {playlist["date"]}')
@@ -89,11 +102,20 @@ class ListenBrainzPlugin(BeetsPlugin):
 
     def get_playlist(self, identifier):
         """Returns a playlist."""
+        if not identifier:
+            raise ui.UserError("ListenBrainz playlist identifier is missing.")
         url = f"{self.ROOT}/playlist/{identifier}"
-        return self._make_request(url)
+        resp = self._make_request(url)
+        if not resp:
+            raise ui.UserError("ListenBrainz playlist request failed.")
+        return resp
 
     def get_tracks_from_playlist(self, playlist):
         """This function returns a list of tracks in the playlist."""
+        if not playlist or "playlist" not in playlist:
+            raise ui.UserError("ListenBrainz playlist data is missing.")
+        if "track" not in playlist.get("playlist", {}):
+            raise ui.UserError("ListenBrainz playlist has no tracks.")
         tracks = []
         for track in playlist.get("playlist").get("track"):
             identifier = track.get("identifier")
@@ -114,9 +136,15 @@ class ListenBrainzPlugin(BeetsPlugin):
         track_info = []
         for track in tracks:
             identifier = track.get("identifier")
-            resp = mb.get_recording_by_id(
-                identifier, includes=["releases", "artist-credits"]
-            )
+            try:
+                resp = mb.get_recording_by_id(
+                    identifier, includes=["releases", "artist-credits"]
+                )
+            except mb.MusicBrainzError as e:
+                self._log.debug(
+                    f"MusicBrainz lookup failed for identifier {identifier}: {e}"
+                )
+                continue
             recording = resp.get("recording")
             title = recording.get("title")
             artist_credit = recording.get("artist-credit", [])
@@ -146,13 +174,23 @@ class ListenBrainzPlugin(BeetsPlugin):
     def get_weekly_playlist(self, playlist_type, most_recent=True):
         # Fetch all playlists
         playlists = self.get_listenbrainz_playlists()
+        if not playlists:
+            raise ui.UserError(
+                "No ListenBrainz playlists found. Check token, username, or API status."
+            )
         # Filter playlists by type
-        filtered_playlists = [p for p in playlists if p["type"] == playlist_type]
+        filtered_playlists = [p for p in playlists if p.get("type") == playlist_type]
+        if not filtered_playlists:
+            raise ui.UserError(f"No weekly {playlist_type} playlists found.")
         # Sort playlists by date in descending order
         sorted_playlists = sorted(
             filtered_playlists, key=lambda x: x["date"], reverse=True
         )
         # Select the most recent or older playlist based on the most_recent flag
+        if not most_recent and len(sorted_playlists) < 2:
+            raise ui.UserError(
+                f"Not enough weekly {playlist_type} playlists to select last week."
+            )
         selected_playlist = sorted_playlists[0] if most_recent else sorted_playlists[1]
         self._log.debug(
             f"Selected playlist: {selected_playlist['type']} - {selected_playlist['date']}"
