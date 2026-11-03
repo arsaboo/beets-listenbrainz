@@ -12,7 +12,9 @@ mb.set_useragent("ListenBrainz", "1.0", "https://github.com/arsaboo/beets-listen
 
 
 class ListenBrainzPlugin(BeetsPlugin):
-    data_source = "ListenBrainz"
+    # Not named `data_source`: beets >= 2.5 treats plugins exposing it as a
+    # metadata source and calls album_for_id(), which this plugin lacks.
+    SOURCE_NAME = "ListenBrainz"
     ROOT = "https://api.listenbrainz.org/1/"
 
     def __init__(self):
@@ -25,7 +27,7 @@ class ListenBrainzPlugin(BeetsPlugin):
     def commands(self):
         """Add beet UI commands to interact with ListenBrainz."""
         lbupdate_cmd = ui.Subcommand(
-            "lbupdate", help=f"Update {self.data_source} views"
+            "lbupdate", help=f"Update {self.SOURCE_NAME} views"
         )
 
         def func(lib, opts, args):
@@ -68,6 +70,7 @@ class ListenBrainzPlugin(BeetsPlugin):
             self._log.warning("ListenBrainz API response missing playlists list.")
             return []
         listenbrainz_playlists = []
+        seen_ids = set()
 
         for playlist in playlists:
             playlist_info = playlist.get("playlist")
@@ -76,12 +79,11 @@ class ListenBrainzPlugin(BeetsPlugin):
             if playlist_info.get("creator") == "listenbrainz":
                 title = playlist_info.get("title")
                 self._log.debug(f"Playlist title: {title}")
-                playlist_type = "Exploration" if "Exploration" in title else "Jams"
-                if "week of" in title:
-                    date_str = title.split("week of ")[1].split(" ")[0]
-                    date = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
-                else:
+                if "Weekly " not in title or "week of " not in title:
                     continue
+                playlist_type = "Exploration" if "Exploration" in title else "Jams"
+                date_str = title.split("week of ")[1].split(" ")[0]
+                date = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
                 identifier = playlist_info.get("identifier")
                 if not isinstance(identifier, str) or not identifier:
                     self._log.warning(
@@ -89,6 +91,9 @@ class ListenBrainzPlugin(BeetsPlugin):
                     )
                     continue
                 playlist_id = identifier.split("/")[-1]
+                if playlist_id in seen_ids:
+                    continue
+                seen_ids.add(playlist_id)
                 listenbrainz_playlists.append(
                     {"type": playlist_type, "date": date, "identifier": playlist_id}
                 )
