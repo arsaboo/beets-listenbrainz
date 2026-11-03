@@ -42,11 +42,12 @@ class ListenBrainzPlugin(BeetsPlugin):
         ls = self.get_listenbrainz_playlists()
         self._log.debug(f"Found {len(ls)} playlists")
 
-    def _make_request(self, url):
+    def _make_request(self, url, params=None):
         try:
             response = requests.get(
                 url=url,
                 headers=self.AUTH_HEADER,
+                params=params,
                 timeout=10,
             )
             response.raise_for_status()
@@ -55,12 +56,42 @@ class ListenBrainzPlugin(BeetsPlugin):
             self._log.debug(f"Invalid Search Error: {e}")
             return None
 
-    def get_playlists_createdfor(self, username):
-        """Returns a list of playlists created by a user."""
+    def get_playlists_createdfor(self, username, count=100):
+        """Returns all playlists created for a user, following pagination."""
         url = f"{self.ROOT}/user/{username}/playlists/createdfor"
-        return self._make_request(url)
+        playlists = []
+        offset = 0
+        while True:
+            resp = self._make_request(url, params={"count": count, "offset": offset})
+            if not resp:
+                break
+            page = resp.get("playlists") or []
+            playlists.extend(page)
+            total = resp.get("playlist_count")
+            offset += len(page)
+            if not page or total is None or offset >= total:
+                break
+        if not playlists:
+            return None
+        return {"playlists": playlists}
+
+    @staticmethod
+    def _playlist_extension(playlist_info):
+        extension = playlist_info.get("extension") or {}
+        return extension.get("https://musicbrainz.org/doc/jspf#playlist") or {}
+
+    @staticmethod
+    def _parse_timestamp(value):
+        try:
+            parsed = datetime.datetime.fromisoformat(value)
+        except (TypeError, ValueError):
+            return None
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=datetime.timezone.utc)
+        return parsed
 
     def get_listenbrainz_playlists(self):
+        """Returns the weekly playlists, newest first, one per type and week."""
         resp = self.get_playlists_createdfor(self.username)
         if not resp:
             self._log.warning("ListenBrainz API returned no data for playlists.")
@@ -69,21 +100,24 @@ class ListenBrainzPlugin(BeetsPlugin):
         if not isinstance(playlists, list):
             self._log.warning("ListenBrainz API response missing playlists list.")
             return []
-        listenbrainz_playlists = []
-        seen_ids = set()
+        weekly = {}
 
         for playlist in playlists:
             playlist_info = playlist.get("playlist")
             if not playlist_info:
                 continue
             if playlist_info.get("creator") == "listenbrainz":
-                title = playlist_info.get("title")
+                title = playlist_info.get("title") or ""
                 self._log.debug(f"Playlist title: {title}")
                 if "Weekly " not in title or "week of " not in title:
                     continue
                 playlist_type = "Exploration" if "Exploration" in title else "Jams"
                 date_str = title.split("week of ")[1].split(" ")[0]
-                date = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
+                try:
+                    date = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
+                except ValueError:
+                    self._log.debug(f"Unparsable week in playlist title: {title}")
+                    continue
                 identifier = playlist_info.get("identifier")
                 if not isinstance(identifier, str) or not identifier:
                     self._log.warning(
@@ -91,14 +125,37 @@ class ListenBrainzPlugin(BeetsPlugin):
                     )
                     continue
                 playlist_id = identifier.split("/")[-1]
-                if playlist_id in seen_ids:
-                    continue
-                seen_ids.add(playlist_id)
-                listenbrainz_playlists.append(
-                    {"type": playlist_type, "date": date, "identifier": playlist_id}
-                )
+                extension = self._playlist_extension(playlist_info)
+                entry = {
+                    "type": playlist_type,
+                    "date": date,
+                    "identifier": playlist_id,
+                    "last_modified": extension.get("last_modified_at")
+                    or playlist_info.get("date"),
+                    "expires_at": (extension.get("additional_metadata") or {}).get(
+                        "expires_at"
+                    ),
+                }
+                # ListenBrainz can generate more than one playlist for the same
+                # week, so keep the most recently generated one.
+                previous = weekly.get((playlist_type, date))
+                if previous:
+                    if (entry["last_modified"] or "") <= (
+                        previous["last_modified"] or ""
+                    ):
+                        self._log.debug(
+                            f"Skipping older {playlist_type} playlist {playlist_id}"
+                            f" for {date}"
+                        )
+                        continue
+                    self._log.debug(
+                        f"Replacing {previous['identifier']} with newer"
+                        f" {playlist_type} playlist {playlist_id} for {date}"
+                    )
+                weekly[(playlist_type, date)] = entry
+
         listenbrainz_playlists = sorted(
-            listenbrainz_playlists,
+            weekly.values(),
             key=lambda x: (-x["date"].toordinal(), x["type"]),
         )
         for playlist in listenbrainz_playlists:
@@ -198,8 +255,16 @@ class ListenBrainzPlugin(BeetsPlugin):
             )
         selected_playlist = sorted_playlists[0] if most_recent else sorted_playlists[1]
         self._log.debug(
-            f"Selected playlist: {selected_playlist['type']} - {selected_playlist['date']}"
+            f"Selected playlist: {selected_playlist['type']}"
+            f" - {selected_playlist['date']}"
         )
+        expires = self._parse_timestamp(selected_playlist.get("expires_at"))
+        if expires and expires < datetime.datetime.now(datetime.timezone.utc):
+            self._log.warning(
+                f"Weekly {selected_playlist['type']} playlist for"
+                f" {selected_playlist['date']} expired on {expires.date()};"
+                " ListenBrainz has not generated a newer one."
+            )
         # Fetch and return tracks from the selected playlist
         playlist = self.get_playlist(selected_playlist.get("identifier"))
         return self.get_tracks_from_playlist(playlist)

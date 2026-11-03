@@ -18,10 +18,10 @@ def test_id_lookup_methods_are_consistent():
         assert hasattr(ListenBrainzPlugin, "album_for_id")
 
 
-def test_not_registered_as_metadata_source(monkeypatch):
+def test_not_registered_as_metadata_source():
     from beets import config, plugins
 
-    monkeypatch.setitem(config, "plugins", ["listenbrainz"])
+    config["plugins"] = ["listenbrainz"]
     config["listenbrainz"]["token"] = "test-token"
     config["listenbrainz"]["username"] = "test-user"
 
